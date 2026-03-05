@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: expensewise-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://expensewise:password@db:5432/expensewise
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_BEDROCK_MODEL_ID=${AWS_BEDROCK_MODEL_ID}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_WHATSAPP_NUMBER=${TWILIO_WHATSAPP_NUMBER}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+    networks:
+      - expensewise-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: expensewise-db
+    environment:
+      - POSTGRES_USER=expensewise
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=expensewise
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expensewise"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expensewise-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: expensewise-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - expensewise-network
+
+volumes:
+  postgres_data:
+
+networks:
+  expensewise-network:
+    driver: bridge
